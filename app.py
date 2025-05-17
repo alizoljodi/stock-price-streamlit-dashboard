@@ -3,7 +3,50 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
-# change
+
+def check_rows(df):
+    """
+    Validates and cleans the dataframe by:
+    1. Checking for null values
+    2. Validating date format
+    3. Validating price values (must be numeric and positive)
+    Returns the cleaned dataframe and any validation messages
+    """
+    original_rows = len(df)
+    messages = []
+    
+    # Check for null values
+    null_rows = df.isnull().any(axis=1)
+    if null_rows.any():
+        df = df.dropna()
+        messages.append(f"Removed {null_rows.sum()} rows with null values")
+    
+    # Validate date column
+    try:
+        df['Date'] = pd.to_datetime(df['Date'])
+    except Exception as e:
+        messages.append(f"Error converting dates: {str(e)}")
+        return None, messages
+    
+    # Validate price column
+    try:
+        # Convert price to numeric, coercing errors to NaN
+        df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
+        # Remove rows with negative or zero prices
+        invalid_prices = (df['Price'] <= 0) | df['Price'].isna()
+        if invalid_prices.any():
+            df = df[~invalid_prices]
+            messages.append(f"Removed {invalid_prices.sum()} rows with invalid prices")
+    except Exception as e:
+        messages.append(f"Error processing prices: {str(e)}")
+        return None, messages
+    
+    # Add summary message
+    removed_rows = original_rows - len(df)
+    if removed_rows > 0:
+        messages.append(f"Total rows removed: {removed_rows}")
+    
+    return df, messages
 
 # Set page configuration
 st.set_page_config(
@@ -30,18 +73,31 @@ if uploaded_file is not None:
         
         # Create a dictionary to store dataframes
         dfs = {}
+        validation_messages = {}
         
         # Read each sheet
         for sheet in sheet_names:
             df = pd.read_excel(uploaded_file, sheet_name=sheet)
             # Ensure the dataframe has the required columns
             if 'Date' in df.columns and 'Price' in df.columns:
-                df['Date'] = pd.to_datetime(df['Date'])
-                dfs[sheet] = df
+                # Validate and clean the data
+                cleaned_df, messages = check_rows(df)
+                if cleaned_df is not None:
+                    dfs[sheet] = cleaned_df
+                    validation_messages[sheet] = messages
+                else:
+                    st.error(f"Sheet '{sheet}' has invalid data: {'; '.join(messages)}")
             else:
                 st.warning(f"Sheet '{sheet}' does not contain required 'Date' and 'Price' columns")
         
         if dfs:
+            # Display validation messages
+            for sheet, messages in validation_messages.items():
+                if messages:
+                    with st.expander(f"Data Validation Results for {sheet}"):
+                        for msg in messages:
+                            st.info(msg)
+            
             # Sidebar for stock selection
             selected_stock = st.sidebar.selectbox(
                 "Select Stock",
