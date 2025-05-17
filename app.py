@@ -3,6 +3,34 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
+import yfinance as yf
+
+# Define market indices
+MARKET_INDICES = {
+    'NASDAQ': '^IXIC',
+    'DJIA': '^DJI',
+    'S&P 500': '^GSPC',
+    'Russell 2000': '^RUT',
+    'FTSE 100': '^FTSE',
+    'Shanghai Composite': '000001.SS'
+}
+
+def fetch_index_data(start_date, end_date):
+    """
+    Fetch data for all market indices for the given date range
+    """
+    index_data = {}
+    for index_name, ticker in MARKET_INDICES.items():
+        try:
+            data = yf.download(ticker, start=start_date, end=end_date)
+            if not data.empty:
+                # Rename columns to match our format
+                data = data.reset_index()
+                data = data.rename(columns={'Date': 'Date', 'Close': 'Price'})
+                index_data[index_name] = data
+        except Exception as e:
+            st.warning(f"Could not fetch data for {index_name}: {str(e)}")
+    return index_data
 
 def check_rows(df):
     """
@@ -96,11 +124,13 @@ def prepare_candlestick_data(df):
     
     return ohlc
 
-def create_line_chart(df, selected_stock):
+def create_line_chart(df, selected_stock, index_data=None):
     """
-    Create a line chart visualization
+    Create a line chart visualization with optional market indices
     """
     fig = go.Figure()
+    
+    # Add main stock data
     fig.add_trace(go.Scatter(
         x=df['Date'],
         y=df['Price'],
@@ -109,23 +139,38 @@ def create_line_chart(df, selected_stock):
         line=dict(width=2)
     ))
     
+    # Add market indices if available
+    if index_data:
+        for index_name, index_df in index_data.items():
+            fig.add_trace(go.Scatter(
+                x=index_df['Date'],
+                y=index_df['Price'],
+                mode='lines',
+                name=index_name,
+                line=dict(width=1, dash='dash'),
+                opacity=0.7
+            ))
+    
     fig.update_layout(
-        title=f"{selected_stock} Price History",
+        title=f"{selected_stock} Price History with Market Indices",
         xaxis_title="Date",
         yaxis_title="Price ($)",
         hovermode='x unified',
-        template='plotly_white'
+        template='plotly_white',
+        showlegend=True
     )
     
     return fig
 
-def create_candlestick_chart(df, selected_stock):
+def create_candlestick_chart(df, selected_stock, index_data=None):
     """
-    Create a candlestick chart visualization
+    Create a candlestick chart visualization with optional market indices
     """
     ohlc_data = prepare_candlestick_data(df)
     
     fig = go.Figure()
+    
+    # Add main stock candlestick
     fig.add_trace(go.Candlestick(
         x=ohlc_data.index,
         open=ohlc_data['Open'],
@@ -134,6 +179,18 @@ def create_candlestick_chart(df, selected_stock):
         close=ohlc_data['Price'],
         name=selected_stock
     ))
+    
+    # Add market indices if available
+    if index_data:
+        for index_name, index_df in index_data.items():
+            fig.add_trace(go.Scatter(
+                x=index_df['Date'],
+                y=index_df['Price'],
+                mode='lines',
+                name=index_name,
+                line=dict(width=1, dash='dash'),
+                opacity=0.7
+            ))
     
     # Add volume bars at the bottom
     fig.add_trace(go.Bar(
@@ -146,7 +203,7 @@ def create_candlestick_chart(df, selected_stock):
     ))
     
     fig.update_layout(
-        title=f"{selected_stock} Price History",
+        title=f"{selected_stock} Price History with Market Indices",
         xaxis_title="Date",
         yaxis_title="Price ($)",
         template='plotly_white',
@@ -154,7 +211,8 @@ def create_candlestick_chart(df, selected_stock):
         yaxis=dict(
             autorange=True,
             fixedrange=False
-        )
+        ),
+        showlegend=True
     )
     
     return fig
@@ -225,8 +283,19 @@ if uploaded_file is not None:
                 index=0
             )
             
+            # Market indices toggle
+            show_indices = st.sidebar.checkbox("Show Market Indices", value=True)
+            
             # Get the selected dataframe
             df = dfs[selected_stock]
+            
+            # Fetch market indices data if enabled
+            index_data = None
+            if show_indices:
+                with st.spinner("Fetching market indices data..."):
+                    start_date = df['Date'].min()
+                    end_date = df['Date'].max()
+                    index_data = fetch_index_data(start_date, end_date)
             
             # Create two columns for metrics
             col1, col2, col3 = st.columns(3)
@@ -245,9 +314,9 @@ if uploaded_file is not None:
             
             # Create the selected chart type
             if chart_type == "Line Chart":
-                fig = create_line_chart(df, selected_stock)
+                fig = create_line_chart(df, selected_stock, index_data)
             else:
-                fig = create_candlestick_chart(df, selected_stock)
+                fig = create_candlestick_chart(df, selected_stock, index_data)
             
             st.plotly_chart(fig, use_container_width=True)
             
