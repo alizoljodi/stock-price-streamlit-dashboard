@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
+# change
 
 # Set page configuration
 st.set_page_config(
@@ -34,11 +35,11 @@ if uploaded_file is not None:
         for sheet in sheet_names:
             df = pd.read_excel(uploaded_file, sheet_name=sheet)
             # Ensure the dataframe has the required columns
-            if 'date' in df.columns and 'price' in df.columns:
-                df['date'] = pd.to_datetime(df['date'])
+            if 'Date' in df.columns and 'Price' in df.columns:
+                df['Date'] = pd.to_datetime(df['Date'])
                 dfs[sheet] = df
             else:
-                st.warning(f"Sheet '{sheet}' does not contain required 'date' and 'price' columns")
+                st.warning(f"Sheet '{sheet}' does not contain required 'Date' and 'Price' columns")
         
         if dfs:
             # Sidebar for stock selection
@@ -54,22 +55,22 @@ if uploaded_file is not None:
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                current_price = df['price'].iloc[-1]
+                current_price = df['Price'].iloc[-1]
                 st.metric("Current Price", f"${current_price:.2f}")
             
             with col2:
-                price_change = df['price'].iloc[-1] - df['price'].iloc[0]
+                price_change = df['Price'].iloc[-1] - df['Price'].iloc[0]
                 st.metric("Total Change", f"${price_change:.2f}")
             
             with col3:
-                percent_change = (price_change / df['price'].iloc[0]) * 100
+                percent_change = (price_change / df['Price'].iloc[0]) * 100
                 st.metric("Percentage Change", f"{percent_change:.2f}%")
             
             # Create the main chart
             fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['price'],
+                x=df['Date'],
+                y=df['Price'],
                 mode='lines',
                 name=selected_stock,
                 line=dict(width=2)
