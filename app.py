@@ -6,47 +6,75 @@ import io
 
 def check_rows(df):
     """
-    Validates and cleans the dataframe by:
-    1. Checking for null values
-    2. Validating date format
-    3. Validating price values (must be numeric and positive)
-    Returns the cleaned dataframe and any validation messages
+    Validates and cleans the dataframe by iterating through rows and checking:
+    1. Null values
+    2. Date format
+    3. Price values (must be numeric and positive)
+    Returns the cleaned dataframe and validation messages
     """
     original_rows = len(df)
     messages = []
+    valid_rows = []
+    invalid_rows = []
     
-    # Check for null values
-    null_rows = df.isnull().any(axis=1)
-    if null_rows.any():
-        df = df.dropna()
-        messages.append(f"Removed {null_rows.sum()} rows with null values")
+    # Iterate through each row
+    for index, row in df.iterrows():
+        is_valid = True
+        row_messages = []
+        
+        # Check for null values
+        if row.isnull().any():
+            is_valid = False
+            row_messages.append("Contains null values")
+        
+        # Validate date
+        try:
+            date_val = pd.to_datetime(row['Date'])
+        except Exception:
+            is_valid = False
+            row_messages.append("Invalid date format")
+        
+        # Validate price
+        try:
+            price_val = pd.to_numeric(row['Price'], errors='coerce')
+            if pd.isna(price_val) or price_val <= 0:
+                is_valid = False
+                row_messages.append("Invalid price value")
+        except Exception:
+            is_valid = False
+            row_messages.append("Price is not numeric")
+        
+        # Store row based on validation
+        if is_valid:
+            valid_rows.append(row)
+        else:
+            invalid_rows.append({
+                'index': index,
+                'messages': row_messages
+            })
     
-    # Validate date column
-    try:
-        df['Date'] = pd.to_datetime(df['Date'])
-    except Exception as e:
-        messages.append(f"Error converting dates: {str(e)}")
-        return None, messages
+    # Create new dataframe with only valid rows
+    if valid_rows:
+        cleaned_df = pd.DataFrame(valid_rows)
+        # Ensure date column is datetime
+        cleaned_df['Date'] = pd.to_datetime(cleaned_df['Date'])
+        # Ensure price column is numeric
+        cleaned_df['Price'] = pd.to_numeric(cleaned_df['Price'])
+    else:
+        return None, ["No valid rows found in the data"]
     
-    # Validate price column
-    try:
-        # Convert price to numeric, coercing errors to NaN
-        df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
-        # Remove rows with negative or zero prices
-        invalid_prices = (df['Price'] <= 0) | df['Price'].isna()
-        if invalid_prices.any():
-            df = df[~invalid_prices]
-            messages.append(f"Removed {invalid_prices.sum()} rows with invalid prices")
-    except Exception as e:
-        messages.append(f"Error processing prices: {str(e)}")
-        return None, messages
+    # Generate validation messages
+    if invalid_rows:
+        messages.append(f"Removed {len(invalid_rows)} invalid rows:")
+        for invalid in invalid_rows:
+            messages.append(f"Row {invalid['index'] + 1}: {', '.join(invalid['messages'])}")
     
     # Add summary message
-    removed_rows = original_rows - len(df)
+    removed_rows = original_rows - len(cleaned_df)
     if removed_rows > 0:
         messages.append(f"Total rows removed: {removed_rows}")
     
-    return df, messages
+    return cleaned_df, messages
 
 # Set page configuration
 st.set_page_config(
