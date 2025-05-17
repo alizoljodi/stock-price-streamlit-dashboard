@@ -96,6 +96,69 @@ def prepare_candlestick_data(df):
     
     return ohlc
 
+def create_line_chart(df, selected_stock):
+    """
+    Create a line chart visualization
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df['Date'],
+        y=df['Price'],
+        mode='lines',
+        name=selected_stock,
+        line=dict(width=2)
+    ))
+    
+    fig.update_layout(
+        title=f"{selected_stock} Price History",
+        xaxis_title="Date",
+        yaxis_title="Price ($)",
+        hovermode='x unified',
+        template='plotly_white'
+    )
+    
+    return fig
+
+def create_candlestick_chart(df, selected_stock):
+    """
+    Create a candlestick chart visualization
+    """
+    ohlc_data = prepare_candlestick_data(df)
+    
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(
+        x=ohlc_data.index,
+        open=ohlc_data['Open'],
+        high=ohlc_data['High'],
+        low=ohlc_data['Low'],
+        close=ohlc_data['Price'],
+        name=selected_stock
+    ))
+    
+    # Add volume bars at the bottom
+    fig.add_trace(go.Bar(
+        x=ohlc_data.index,
+        y=ohlc_data['Price'] - ohlc_data['Open'],
+        name='Volume',
+        marker_color=['red' if price < open else 'green' 
+                    for price, open in zip(ohlc_data['Price'], ohlc_data['Open'])],
+        opacity=0.3
+    ))
+    
+    fig.update_layout(
+        title=f"{selected_stock} Price History",
+        xaxis_title="Date",
+        yaxis_title="Price ($)",
+        template='plotly_white',
+        xaxis_rangeslider_visible=False,
+        yaxis=dict(
+            autorange=True,
+            fixedrange=False
+        )
+    )
+    
+    return fig
+
 # Set page configuration
 st.set_page_config(
     page_title="Stock Price Dashboard",
@@ -146,10 +209,20 @@ if uploaded_file is not None:
                         for msg in messages:
                             st.info(msg)
             
-            # Sidebar for stock selection
+            # Sidebar controls
+            st.sidebar.header("Chart Controls")
+            
+            # Stock selection
             selected_stock = st.sidebar.selectbox(
                 "Select Stock",
                 options=list(dfs.keys())
+            )
+            
+            # Chart type selection
+            chart_type = st.sidebar.radio(
+                "Select Chart Type",
+                options=["Line Chart", "Candlestick Chart"],
+                index=0
             )
             
             # Get the selected dataframe
@@ -170,42 +243,11 @@ if uploaded_file is not None:
                 percent_change = (price_change / df['Price'].iloc[0]) * 100
                 st.metric("Percentage Change", f"{percent_change:.2f}%")
             
-            # Prepare OHLC data for candlestick chart
-            ohlc_data = prepare_candlestick_data(df)
-            
-            # Create the candlestick chart
-            fig = go.Figure()
-            fig.add_trace(go.Candlestick(
-                x=ohlc_data.index,
-                open=ohlc_data['Open'],
-                high=ohlc_data['High'],
-                low=ohlc_data['Low'],
-                close=ohlc_data['Price'],  # Using 'Price' instead of 'Close'
-                name=selected_stock
-            ))
-            
-            # Update layout
-            fig.update_layout(
-                title=f"{selected_stock} Price History",
-                xaxis_title="Date",
-                yaxis_title="Price ($)",
-                template='plotly_white',
-                xaxis_rangeslider_visible=False,  # Disable rangeslider
-                yaxis=dict(
-                    autorange=True,
-                    fixedrange=False
-                )
-            )
-            
-            # Add volume bars at the bottom
-            fig.add_trace(go.Bar(
-                x=ohlc_data.index,
-                y=ohlc_data['Price'] - ohlc_data['Open'],  # Using 'Price' instead of 'Close'
-                name='Volume',
-                marker_color=['red' if price < open else 'green' 
-                            for price, open in zip(ohlc_data['Price'], ohlc_data['Open'])],
-                opacity=0.3
-            ))
+            # Create the selected chart type
+            if chart_type == "Line Chart":
+                fig = create_line_chart(df, selected_stock)
+            else:
+                fig = create_candlestick_chart(df, selected_stock)
             
             st.plotly_chart(fig, use_container_width=True)
             
