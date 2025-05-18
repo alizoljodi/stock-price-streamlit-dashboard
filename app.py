@@ -3,56 +3,34 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
-import investpy
+import yfinance as yf
 
 # Define market indices
 MARKET_INDICES = {
-    'NASDAQ': 'NASDAQ',
-    'DJIA': 'Dow Jones',
-    'S&P 500': 'S&P 500',
-    'Russell 2000': 'Russell 2000',
-    'FTSE 100': 'FTSE 100',
-    'Shanghai Composite': 'Shanghai'
+    'NASDAQ': '^IXIC',
+    'DJIA': '^DJI',
+    'S&P 500': '^GSPC',
+    'Russell 2000': '^RUT',
+    'FTSE 100': '^FTSE',
+    'Shanghai Composite': '000001.SS'
 }
 
-def fetch_index_data(start_date_str, end_date_str):
+def fetch_index_data(start_date, end_date):
     """
-    Fetch data for all market indices within the given date range using investpy.
-
-    Parameters:
-    - start_date_str (str): Start date as a string, e.g., 'Mar 19, 2020'
-    - end_date_str (str): End date as a string, e.g., 'Mar 19, 2020'
-
-    Returns:
-    - dict: Index data with renamed columns ['Date', 'Price']
+    Fetch data for all market indices for the given date range
     """
-    start_date = parse_date(start_date_str)
-    end_date = parse_date(end_date_str)
-    
-    if not start_date or not end_date:
-        return {}
-
     index_data = {}
-    
-    for index_name, investpy_name in MARKET_INDICES.items():
+    for index_name, ticker in MARKET_INDICES.items():
         try:
-            data = investpy.get_index_historical_data(
-                index=investpy_name,
-                country='United States' if index_name != 'FTSE 100' and index_name != 'Shanghai Composite' else 'United Kingdom' if index_name == 'FTSE 100' else 'China',
-                from_date=start_date.strftime('%d/%m/%Y'),
-                to_date=end_date.strftime('%d/%m/%Y')
-            )
-            if data is not None and not data.empty:
+            data = yf.download(ticker, start=start_date, end=end_date)
+            if not data.empty:
+                # Rename columns to match our format
                 data = data.reset_index()
-                data = data[['Date', 'Close']].rename(columns={'Close': 'Price'})
+                data = data.rename(columns={'Date': 'Date', 'Close': 'Price'})
                 index_data[index_name] = data
-            else:
-                st.warning(f"No data found for {index_name} in the given date range.")
         except Exception as e:
-            st.warning(f"Could not fetch data for {index_name}: {e}")
-    
+            st.warning(f"Could not fetch data for {index_name}: {str(e)}")
     return index_data
-
 
 def check_rows(df):
     """
