@@ -261,11 +261,11 @@ if uploaded_file is not None:
         
         if dfs:
             # Display validation messages
-            for sheet, messages in validation_messages.items():
+            '''for sheet, messages in validation_messages.items():
                 if messages:
                     with st.expander(f"Data Validation Results for {sheet}"):
                         for msg in messages:
-                            st.info(msg)
+                            st.info(msg)'''
             
             # Sidebar controls
             st.sidebar.header("Chart Controls")
