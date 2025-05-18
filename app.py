@@ -3,21 +3,21 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
-import yfinance as yf
+import investpy
 
 # Define market indices
 MARKET_INDICES = {
-    'NASDAQ': '^IXIC',
-    'DJIA': '^DJI',
-    'S&P 500': '^GSPC',
-    'Russell 2000': '^RUT',
-    'FTSE 100': '^FTSE',
-    'Shanghai Composite': '000001.SS'
+    'NASDAQ': 'NASDAQ',
+    'DJIA': 'Dow Jones',
+    'S&P 500': 'S&P 500',
+    'Russell 2000': 'Russell 2000',
+    'FTSE 100': 'FTSE 100',
+    'Shanghai Composite': 'Shanghai'
 }
 
 def fetch_index_data(start_date_str, end_date_str):
     """
-    Fetch data for all market indices within the given date range.
+    Fetch data for all market indices within the given date range using investpy.
 
     Parameters:
     - start_date_str (str): Start date as a string, e.g., 'Mar 19, 2020'
@@ -34,17 +34,22 @@ def fetch_index_data(start_date_str, end_date_str):
 
     index_data = {}
     
-    for index_name, ticker in MARKET_INDICES.items():
+    for index_name, investpy_name in MARKET_INDICES.items():
         try:
-            data = yf.download(ticker, start=start_date, end=end_date)
+            data = investpy.get_index_historical_data(
+                index=investpy_name,
+                country='United States' if index_name != 'FTSE 100' and index_name != 'Shanghai Composite' else 'United Kingdom' if index_name == 'FTSE 100' else 'China',
+                from_date=start_date.strftime('%d/%m/%Y'),
+                to_date=end_date.strftime('%d/%m/%Y')
+            )
             if data is not None and not data.empty:
                 data = data.reset_index()
                 data = data[['Date', 'Close']].rename(columns={'Close': 'Price'})
                 index_data[index_name] = data
             else:
-                st.warning(f"No data found for {index_name} ({ticker}) in the given date range.")
+                st.warning(f"No data found for {index_name} in the given date range.")
         except Exception as e:
-            st.warning(f"Could not fetch data for {index_name} ({ticker}): {e}")
+            st.warning(f"Could not fetch data for {index_name}: {e}")
     
     return index_data
 
