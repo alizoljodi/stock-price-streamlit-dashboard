@@ -254,10 +254,10 @@ if uploaded_file is not None:
                 if cleaned_df is not None:
                     dfs[sheet] = cleaned_df
                     validation_messages[sheet] = messages
-                else:
-                    st.error(f"Sheet '{sheet}' has invalid data: {'; '.join(messages)}")
-            else:
-                st.warning(f"Sheet '{sheet}' does not contain required 'Date' and 'Price' columns")
+                #else:
+                #    st.error(f"Sheet '{sheet}' has invalid data: {'; '.join(messages)}")
+            #else:
+            #    st.warning(f"Sheet '{sheet}' does not contain required 'Date' and 'Price' columns")
         
         if dfs:
             # Display validation messages
