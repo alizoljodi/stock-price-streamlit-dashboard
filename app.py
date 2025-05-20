@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
-import yfinance as yf
+#import yfinance as yf
 
 # Define market indices
 MARKET_INDICES = {
